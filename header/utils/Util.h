@@ -7,6 +7,21 @@
 #include <dwmapi.h>
 #include <QElapsedTimer>
 
+// VK_MENU is the Alt/Option/Menu key
+#define ALTTAB_DEFAULT_HOTKEY VK_MENU
+
+// VK_CONTROL is the Ctrl key
+// #define ALTTAB_DEFAULT_HOTKEY VK_CONTROL
+
+#if ALTTAB_DEFAULT_HOTKEY == VK_MENU
+#define ALTTAB_DEFAULT_HOTKEY_MODIFIER Qt::AltModifier
+#define ALTTAB_DEFAULT_HOTKEY_MODIFIER_KEY Qt::Key_Alt
+#elif ALTTAB_DEFAULT_HOTKEY == VK_CONTROL
+#define ALTTAB_DEFAULT_HOTKEY_MODIFIER Qt::ControlModifier
+#define ALTTAB_DEFAULT_HOTKEY_MODIFIER_KEY Qt::Key_Control
+#endif
+
+
 namespace Util {
     QString getWindowTitle(HWND hwnd);
     QString getClassName(HWND hwnd);

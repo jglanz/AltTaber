@@ -17,7 +17,8 @@ LRESULT keyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
              * the callback function is called before the asynchronous state of the key is updated.
              * Consequently, the asynchronous state of the key cannot be determined by calling GetAsyncKeyState from within the callback function.
              * */
-            bool isAltPressed = Util::isKeyPressed(VK_MENU);
+
+            bool isAltPressed = Util::isKeyPressed(ALTTAB_DEFAULT_HOTKEY);
 
             if (isAltPressed && Hooker::receiver) {
                 if (pKeyBoard->vkCode == VK_TAB) {
@@ -28,14 +29,14 @@ LRESULT keyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
                     } else {
                         // 转发Alt+Tab给Widget
                         auto shiftModifier = Util::isKeyPressed(VK_SHIFT) ? Qt::ShiftModifier : Qt::NoModifier;
-                        auto tabDownEvent = new QKeyEvent(QEvent::KeyPress, Qt::Key_Tab, Qt::AltModifier | shiftModifier);
+                        auto tabDownEvent = new QKeyEvent(QEvent::KeyPress, Qt::Key_Tab, ALTTAB_DEFAULT_HOTKEY_MODIFIER | shiftModifier);
                         QApplication::postEvent(Hooker::receiver, tabDownEvent); // async
                     }
                     return 1; // 阻止事件传递
                 } else if (pKeyBoard->vkCode == VK_OEM_3) { // ~`
                     qDebug() << "Alt+` detected!";
                     auto shiftModifier = Util::isKeyPressed(VK_SHIFT) ? Qt::ShiftModifier : Qt::NoModifier;
-                    auto event = new QKeyEvent(QEvent::KeyPress, Qt::Key_QuoteLeft, Qt::AltModifier | shiftModifier);
+                    auto event = new QKeyEvent(QEvent::KeyPress, Qt::Key_QuoteLeft, ALTTAB_DEFAULT_HOTKEY_MODIFIER | shiftModifier);
                     QApplication::postEvent(Hooker::receiver, event); // async
                     return 1; // 阻止事件传递
                 }
