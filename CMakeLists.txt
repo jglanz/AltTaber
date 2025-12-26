@@ -103,3 +103,57 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 if (MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE "/utf-8")
 endif ()
+
+# --- Installation and Packaging ---
+
+include(GNUInstallDirs)
+
+# Install the executable
+install(TARGETS ${PROJECT_NAME}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        COMPONENT Application)
+
+# Qt Deployment (Windows)
+if(WIN32)
+    # Get the location of windeployqt
+    get_target_property(_qmake_executable Qt6::qmake IMPORTED_LOCATION)
+    get_filename_component(_qt_bin_dir "${_qmake_executable}" DIRECTORY)
+    find_program(WINDEPLOYQT_EXECUTABLE NAMES windeployqt HINTS "${_qt_bin_dir}")
+
+    if(WINDEPLOYQT_EXECUTABLE)
+        # We use a custom install script to run windeployqt on the installed executable
+        install(CODE "
+            execute_process(COMMAND \"${WINDEPLOYQT_EXECUTABLE}\"
+                            --no-translations
+                            --compiler-runtime
+                            \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/AltTaber.exe\")
+        " COMPONENT Application)
+    endif()
+endif()
+
+# CPack configuration for WiX
+set(CPACK_PACKAGE_NAME "${PRODUCT_NAME}")
+set(CPACK_PACKAGE_VENDOR "${COMPANY_NAME}")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "${FILE_DESCRIPTION}")
+set(CPACK_PACKAGE_VERSION_MAJOR "${VERSION_MAJOR}")
+set(CPACK_PACKAGE_VERSION_MINOR "${VERSION_MINOR}")
+set(CPACK_PACKAGE_VERSION_PATCH "${VERSION_PATCH}")
+set(CPACK_PACKAGE_INSTALL_DIRECTORY "${PRODUCT_NAME}")
+
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.txt")
+
+# WiX specific settings
+set(CPACK_GENERATOR "WIX")
+set(CPACK_WIX_PRODUCT_GUID "F755C3CE-F23B-426A-B860-8BC87DCD6C75") # Let WiX generate one or specify if needed
+set(CPACK_WIX_UPGRADE_GUID "D98A2E8B-1E2A-4B6E-9F9B-7C8D9E0F1A2B") # A stable GUID for upgrades
+set(CPACK_WIX_UI_BANNER "${CMAKE_CURRENT_SOURCE_DIR}/img/ui.png") # Optional banner
+# set(CPACK_WIX_UI_DIALOG "${CMAKE_CURRENT_SOURCE_DIR}/img/ui.png") # Optional dialog image
+
+# Add Start Menu shortcut
+set(CPACK_PACKAGE_EXECUTABLES "${PROJECT_NAME}" "AltTaber")
+set(CPACK_WIX_PROGRAM_MENU_FOLDER "${PRODUCT_NAME}")
+
+# Create desktop shortcut (optional, but common for such apps)
+set(CPACK_CREATE_DESKTOP_LINKS "${PROJECT_NAME}")
+
+include(CPack)
