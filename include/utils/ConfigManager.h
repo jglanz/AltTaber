@@ -41,6 +41,14 @@ public:
         set("DisplayMonitor", monitor);
     }
 
+    bool getShowAllWindows() {
+        return get("ShowAllWindows", false).toBool();
+    }
+
+    void setShowAllWindows(bool show) {
+        set("ShowAllWindows", show);
+    }
+
 private:
     explicit ConfigManager(const QString& filename) : ConfigManagerBase(filename) {}
 };

@@ -41,6 +41,7 @@ private:
 
         auto* act_update = new QAction("Check for Updates", menu);
         auto* act_settings = new QAction("Settings", menu);
+        auto* act_show_all_windows = new QAction("Show All Windows", menu);
         auto* act_startup = new QAction("Start with Windows", menu);
         auto* menu_monitor = new QMenu("Display Monitor", menu);
         auto* act_quit = new QAction("Quit >", menu);
@@ -58,6 +59,15 @@ private:
         });
         connect(&cfg, &ConfigManager::configEdited, this, [this] {
             this->showMessage("Config Edited", "auto reloaded");
+        });
+
+        act_show_all_windows->setCheckable(true);
+        connect(act_show_all_windows, &QAction::triggered, this, [this](bool checked) {
+            cfg.setShowAllWindows(checked);
+            this->showMessage("Show All Windows", checked ? "ON" : "OFF");
+        });
+        connect(menu, &QMenu::aboutToShow, act_show_all_windows, [act_show_all_windows] {
+            act_show_all_windows->setChecked(cfg.getShowAllWindows());
         });
 
         act_startup->setCheckable(true);
@@ -111,6 +121,7 @@ private:
 
         menu->addAction(act_update);
         menu->addAction(act_settings);
+        menu->addAction(act_show_all_windows);
         menu->addAction(act_startup);
         menu->addMenu(menu_monitor);
         menu->addAction(act_quit);

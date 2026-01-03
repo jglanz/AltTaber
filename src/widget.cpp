@@ -1,4 +1,4 @@
-﻿#include "../header/widget.h"
+﻿#include "widget.h"
 #include "ui_Widget.h"
 #include "utils/Util.h"
 #include <QDebug>
@@ -232,26 +232,41 @@ void Widget::notifyForegroundChanged(HWND hwnd, ForegroundChangeSource source) {
 /// collect, filter, sort Windows for presentation
 QList<WindowGroup> Widget::prepareWindowGroupList() {
     QMap<QString, WindowGroup> winGroupMap;
+    QList<WindowGroup> ungroupedList;
+    bool showAllWindows = cfg.getShowAllWindows();
+
     const auto list = Util::listValidWindows();
     for (auto hwnd: list) {
         if (hwnd == this->hWnd()) continue; // skip self
         auto path = Util::getWindowProcessPath(hwnd);
         if (path.isEmpty()) continue; // TODO 可能需要管理员权限
-        auto& winGroup = winGroupMap[path];
-        if (winGroup.exePath.isEmpty()) { // QIcon::isNull 判断可能不太准（例如空图标）
-            winGroup.exePath = path;
-            auto icon = Util::getCachedIcon(path, hwnd); // TODO background thread
-            if (path.endsWith("QQ\\bin\\QQ.exe", Qt::CaseInsensitive)) { // draw chat partner for classical QQ
-                QPixmap overlay = Util::getWindowIcon(hwnd);
-                const auto iSize = lw->iconSize();
-                QPixmap bgPixmap = icon.pixmap(iSize);
-                icon = Util::overlayIcon(bgPixmap, overlay, {{iSize.width() / 2, iSize.height() / 2}, iSize / 2});
+
+        WindowInfo winInfo = {Util::getWindowTitle(hwnd), Util::getClassName(hwnd), hwnd};
+
+        if (showAllWindows) {
+            WindowGroup group;
+            group.exePath = path;
+            group.icon = Util::getWindowIconOnly(hwnd);
+            group.addWindow(winInfo);
+            ungroupedList.append(group);
+        } else {
+            auto& winGroup = winGroupMap[path];
+            if (winGroup.exePath.isEmpty()) { // QIcon::isNull 判断可能不太准（例如空图标）
+                winGroup.exePath = path;
+                auto icon = Util::getCachedIcon(path, hwnd); // TODO background thread
+                if (path.endsWith("QQ\\bin\\QQ.exe", Qt::CaseInsensitive)) { // draw chat partner for classical QQ
+                    QPixmap overlay = Util::getWindowIcon(hwnd);
+                    const auto iSize = lw->iconSize();
+                    QPixmap bgPixmap = icon.pixmap(iSize);
+                    icon = Util::overlayIcon(bgPixmap, overlay, {{iSize.width() / 2, iSize.height() / 2}, iSize / 2});
+                }
+                winGroup.icon = icon;
             }
-            winGroup.icon = icon;
+            winGroup.addWindow(winInfo);
         }
-        winGroup.addWindow({Util::getWindowTitle(hwnd), Util::getClassName(hwnd), hwnd});
     }
-    auto winGroupList = winGroupMap.values();
+
+    auto winGroupList = showAllWindows ? ungroupedList : winGroupMap.values();
     // 按照活跃度排序
     std::sort(winGroupList.begin(), winGroupList.end(), [this](const WindowGroup& a, const WindowGroup& b) {
         auto timeA = getLastValidActiveGroupWindow(a).second;

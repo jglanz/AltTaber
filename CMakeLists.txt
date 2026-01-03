@@ -10,7 +10,7 @@ list(APPEND CMAKE_AUTOUIC_SEARCH_PATHS ui) # 如果.ui文件不在.cpp同一目�
 
 # 设置版本信息变量
 set(VERSION_MAJOR 0)
-set(VERSION_MINOR 5)
+set(VERSION_MINOR 6)
 set(VERSION_PATCH 0)
 
 set(COMPANY_NAME "MrBeanCpp")
@@ -28,7 +28,7 @@ configure_file(
         @ONLY # 只处理@var@格式的变量
 )
 
-include_directories(header)
+include_directories(include)
 
 find_package(Qt6 COMPONENTS
         Core
@@ -38,52 +38,52 @@ find_package(Qt6 COMPONENTS
         Network
         REQUIRED)
 
-add_executable(Win_Switcher src/main.cpp
+add_executable(
+        ${PROJECT_NAME}
+        src/main.cpp
         ${VERSIONINFO_RC}
         res.qrc
         src/widget.cpp
-        header/widget.h
+        include/widget.h
         ui/widget.ui
         src/utils/winEventHook.cpp
-        header/utils/winEventHook.h
+        include/utils/winEventHook.h
         src/utils/Util.cpp
-        header/utils/Util.h
-        header/utils/setWindowBlur.h
+        include/utils/Util.h
+        include/utils/setWindowBlur.h
         src/utils/setWindowBlur.cpp
         src/utils/IconOnlyDelegate.cpp
-        header/utils/IconOnlyDelegate.h
-        header/utils/uiautomation.h
+        include/utils/IconOnlyDelegate.h
+        include/utils/uiautomation.h
         src/utils/uiautomation.cpp
         src/utils/AppUtil.cpp
-        header/utils/AppUtil.h
+        include/utils/AppUtil.h
         src/utils/KeyboardHooker.cpp
-        header/utils/KeyboardHooker.h
+        include/utils/KeyboardHooker.h
         src/utils/TaskbarWheelHooker.cpp
-        header/utils/TaskbarWheelHooker.h
+        include/utils/TaskbarWheelHooker.h
         src/utils/QtWin.cpp
-        header/utils/QtWin.h
-        header/utils/ComInitializer.h
-        header/utils/SingleApp.h
-        header/utils/Startup.h
-        header/utils/SystemTray.h
-        header/utils/ConfigManager.h
-        header/utils/ConfigManagerBase.h
+        include/utils/QtWin.h
+        include/utils/ComInitializer.h
+        include/utils/SingleApp.h
+        include/utils/Startup.h
+        include/utils/SystemTray.h
+        include/utils/ConfigManager.h
+        include/utils/ConfigManagerBase.h
         src/UpdateDialog.cpp
-        header/UpdateDialog.h
+        include/UpdateDialog.h
         ui/UpdateDialog.ui
         src/utils/ScheduledTask.cpp
-        header/utils/ScheduledTask.h)
-target_link_libraries(Win_Switcher
+        include/utils/ScheduledTask.h)
+target_link_libraries(${PROJECT_NAME}
         Qt::Core
         Qt::Gui
         Qt::Widgets
         Qt::Xml
         Qt::Network
-)
-
-target_link_libraries(${PROJECT_NAME}
         Dwmapi
 )
+
 
 # 启用`gui_private`模块
 # 必须放在find_package之后，否则`Qt6Gui_PRIVATE_INCLUDE_DIRS`变量未定义

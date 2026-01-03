@@ -456,7 +456,7 @@ namespace Util {
     QString getUwpInstallDirFromHwnd(HWND hwnd) {
         if (AppUtil::isAppFrameWindow(hwnd))
             hwnd = AppUtil::getAppCoreWindow(hwnd); // AppCore 用于获取exe路径
-        // 仅通过`isAppFrameWindow(hwnd)`来判断UWP可能不够准确
+        // 仅通过`isAppFrameWindow(hwnd)`来判断UWP可能不够准确P
 
         DWORD pid;
         GetWindowThreadProcessId(hwnd, &pid);
@@ -537,6 +537,15 @@ namespace Util {
         if (!hIcon) // 这种方式能获取更多图标，例如当窗口没有使用SETICON时
             hIcon = reinterpret_cast<HICON>(GetClassLongPtr(hwnd, GCLP_HICON));
         return QtWin::fromHICON(hIcon);
+    }
+
+    QIcon getWindowIconOnly(HWND hwnd) {
+        auto pixmap = getWindowIcon(hwnd);
+        if (pixmap.isNull()) {
+            auto path = getWindowProcessPath(hwnd);
+            return getCachedIcon(path, hwnd);
+        }
+        return pixmap;
     }
 
     /// 设置窗口圆角 原来这么方便嘛！ 为什么Qt搜不到！
