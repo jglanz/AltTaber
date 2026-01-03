@@ -9,6 +9,7 @@
 #include "Startup.h"
 #include "ConfigManager.h"
 #include "UpdateDialog.h"
+#include "SettingsDialog.h"
 
 #define sysTray SystemTray::instance()
 
@@ -55,7 +56,8 @@ private:
         });
 
         connect(act_settings, &QAction::triggered, this, [] {
-            cfg.editConfigFile();
+            static auto* dlg = new SettingsDialog;
+            dlg->show();
         });
         connect(&cfg, &ConfigManager::configEdited, this, [this] {
             this->showMessage("Config Edited", "auto reloaded");

@@ -49,6 +49,26 @@ public:
         set("ShowAllWindows", show);
     }
 
+    int getHotkey() {
+        return get("Hotkey", VK_MENU).toInt();
+    }
+
+    void setHotkey(int vkCode) {
+        set("Hotkey", vkCode);
+    }
+
+    Qt::KeyboardModifier getHotkeyModifier() {
+        auto hotkey = getHotkey();
+        if (hotkey == VK_CONTROL) return Qt::ControlModifier;
+        return Qt::AltModifier;
+    }
+
+    Qt::Key getHotkeyModifierKey() {
+        auto hotkey = getHotkey();
+        if (hotkey == VK_CONTROL) return Qt::Key_Control;
+        return Qt::Key_Alt;
+    }
+
 private:
     explicit ConfigManager(const QString& filename) : ConfigManagerBase(filename) {}
 };

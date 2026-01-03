@@ -18,7 +18,7 @@ LRESULT keyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
              * Consequently, the asynchronous state of the key cannot be determined by calling GetAsyncKeyState from within the callback function.
              * */
 
-            bool isAltPressed = Util::isKeyPressed(ALTTAB_DEFAULT_HOTKEY);
+            bool isAltPressed = Util::isKeyPressed(ALTTAB_HOTKEY);
 
             if (isAltPressed && Hooker::receiver) {
                 if (pKeyBoard->vkCode == VK_TAB) {
@@ -29,24 +29,30 @@ LRESULT keyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
                     } else {
                         // 转发Alt+Tab给Widget
                         auto shiftModifier = Util::isKeyPressed(VK_SHIFT) ? Qt::ShiftModifier : Qt::NoModifier;
-                        auto tabDownEvent = new QKeyEvent(QEvent::KeyPress, Qt::Key_Tab, ALTTAB_DEFAULT_HOTKEY_MODIFIER | shiftModifier);
+                        auto tabDownEvent = new QKeyEvent(QEvent::KeyPress, Qt::Key_Tab, ALTTAB_HOTKEY_MODIFIER | shiftModifier);
                         QApplication::postEvent(Hooker::receiver, tabDownEvent); // async
                     }
                     return 1; // 阻止事件传递
                 } else if (pKeyBoard->vkCode == VK_OEM_3) { // ~`
                     qDebug() << "Alt+` detected!";
                     auto shiftModifier = Util::isKeyPressed(VK_SHIFT) ? Qt::ShiftModifier : Qt::NoModifier;
-                    auto event = new QKeyEvent(QEvent::KeyPress, Qt::Key_QuoteLeft, ALTTAB_DEFAULT_HOTKEY_MODIFIER | shiftModifier);
+                    auto event = new QKeyEvent(QEvent::KeyPress, Qt::Key_QuoteLeft, ALTTAB_HOTKEY_MODIFIER | shiftModifier);
                     QApplication::postEvent(Hooker::receiver, event); // async
                     return 1; // 阻止事件传递
                 }
             }
         } else if (wParam == WM_KEYUP) { // Amazing, Alt Down is `WM_SYSKEYDOWN`, but release is `WM_KEYUP`
             auto* pKeyBoard = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam);
-            if (pKeyBoard->vkCode == VK_LMENU && Hooker::receiver) {
-                // BUG: Alt + 方向键 长按，过一秒会触发Alt release，而Alt + 其他键则不会，可能是Windows保护机制或键盘问题？
-                qDebug() << "Alt released!";
-                auto event = new QKeyEvent(QEvent::KeyRelease, Qt::Key_Alt, Qt::NoModifier);
+            bool isHotkeyReleased = false;
+            if (ALTTAB_HOTKEY == VK_MENU) {
+                isHotkeyReleased = (pKeyBoard->vkCode == VK_LMENU || pKeyBoard->vkCode == VK_RMENU || pKeyBoard->vkCode == VK_MENU);
+            } else if (ALTTAB_HOTKEY == VK_CONTROL) {
+                isHotkeyReleased = (pKeyBoard->vkCode == VK_LCONTROL || pKeyBoard->vkCode == VK_RCONTROL || pKeyBoard->vkCode == VK_CONTROL);
+            }
+
+            if (isHotkeyReleased && Hooker::receiver) {
+                qDebug() << "Hotkey released!";
+                auto event = new QKeyEvent(QEvent::KeyRelease, ALTTAB_HOTKEY_MODIFIER_KEY, Qt::NoModifier);
                 QApplication::postEvent(Hooker::receiver, event); // async
                 // not block
             }

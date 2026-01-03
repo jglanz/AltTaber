@@ -10,7 +10,7 @@ list(APPEND CMAKE_AUTOUIC_SEARCH_PATHS ui) # 如果.ui文件不在.cpp同一目�
 
 # 设置版本信息变量
 set(VERSION_MAJOR 0)
-set(VERSION_MINOR 6)
+set(VERSION_MINOR 7)
 set(VERSION_PATCH 0)
 
 set(COMPANY_NAME "MrBeanCpp")
@@ -73,6 +73,9 @@ add_executable(
         src/UpdateDialog.cpp
         include/UpdateDialog.h
         ui/UpdateDialog.ui
+        src/SettingsDialog.cpp
+        include/SettingsDialog.h
+        ui/SettingsDialog.ui
         src/utils/ScheduledTask.cpp
         include/utils/ScheduledTask.h)
 target_link_libraries(${PROJECT_NAME}
@@ -144,7 +147,9 @@ set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.txt")
 
 # WiX specific settings
 set(CPACK_GENERATOR "WIX")
-set(CPACK_WIX_PRODUCT_GUID "F755C3CE-F23B-426A-B860-8BC87DCD6C75") # Let WiX generate one or specify if needed
+# WiX requires CPACK_WIX_PRODUCT_GUID to change between versions for proper upgrade handling.
+#   So we choose not to set it explicitly here, letting WiX generate one.
+#   set(CPACK_WIX_PRODUCT_GUID "F755C3CE-F23B-426A-B860-8BC87DCD6C75")
 set(CPACK_WIX_UPGRADE_GUID "D98A2E8B-1E2A-4B6E-9F9B-7C8D9E0F1A2B") # A stable GUID for upgrades
 set(CPACK_WIX_UI_BANNER "${CMAKE_CURRENT_SOURCE_DIR}/img/ui.png") # Optional banner
 # set(CPACK_WIX_UI_DIALOG "${CMAKE_CURRENT_SOURCE_DIR}/img/ui.png") # Optional dialog image

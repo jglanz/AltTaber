@@ -88,7 +88,7 @@ void Widget::keyPressEvent(QKeyEvent* event) {
         // weird formula, but works (hhh)
         auto index = (i - (2 * isShiftPressed - 1) + lw->count()) % lw->count();
         lw->setCurrentRow(index);
-    } else if (key == Qt::Key_QuoteLeft && (modifiers & ALTTAB_DEFAULT_HOTKEY_MODIFIER)) { // Alt + `, 在前台窗口同组窗口内切换
+    } else if (key == Qt::Key_QuoteLeft && (modifiers & ALTTAB_HOTKEY_MODIFIER)) { // Alt + `, 在前台窗口同组窗口内切换
         if (this->isVisible() && !this->isMinimized()) {
             // isVisible() == true if minimized
             // 不使用`isForeground()`，即使`bringWindowToTop`(without active)，少数窗口也可能抢夺焦点，如`CAJViewer`
@@ -178,7 +178,7 @@ void Widget::setupLabelFont() {
 }
 
 void Widget::keyReleaseEvent(QKeyEvent* event) {
-    if (event->key() == ALTTAB_DEFAULT_HOTKEY_MODIFIER_KEY || event->key() == Qt::Key_Escape) {
+    if (event->key() == ALTTAB_HOTKEY_MODIFIER_KEY || event->key() == Qt::Key_Escape) {
         groupWindowOrder.clear(); // for Alt + `
         if (this->isVisible()) {
             // active selected window

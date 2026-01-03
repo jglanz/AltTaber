@@ -1,8 +1,10 @@
 ﻿#ifndef WIN_SWITCHER_CONFIGMANAGERBASE_H
 #define WIN_SWITCHER_CONFIGMANAGERBASE_H
 
+#include <Windows.h>
 #include <QSettings>
 #include <QProcess>
+#include <QFile>
 
 class ConfigManagerBase : public QObject {
     Q_OBJECT

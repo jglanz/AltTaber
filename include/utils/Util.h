@@ -6,20 +6,12 @@
 #include <QIcon>
 #include <dwmapi.h>
 #include <QElapsedTimer>
+#include "ConfigManager.h"
 
-// VK_MENU is the Alt/Option/Menu key
-#define ALTTAB_DEFAULT_HOTKEY VK_MENU
-
-// VK_CONTROL is the Ctrl key
-// #define ALTTAB_DEFAULT_HOTKEY VK_CONTROL
-
-#if ALTTAB_DEFAULT_HOTKEY == VK_MENU
-#define ALTTAB_DEFAULT_HOTKEY_MODIFIER Qt::AltModifier
-#define ALTTAB_DEFAULT_HOTKEY_MODIFIER_KEY Qt::Key_Alt
-#elif ALTTAB_DEFAULT_HOTKEY == VK_CONTROL
-#define ALTTAB_DEFAULT_HOTKEY_MODIFIER Qt::ControlModifier
-#define ALTTAB_DEFAULT_HOTKEY_MODIFIER_KEY Qt::Key_Control
-#endif
+// ALTTAB_DEFAULT_HOTKEY related macros are deprecated, use ConfigManager instead.
+#define ALTTAB_HOTKEY (cfg.getHotkey())
+#define ALTTAB_HOTKEY_MODIFIER (cfg.getHotkeyModifier())
+#define ALTTAB_HOTKEY_MODIFIER_KEY (cfg.getHotkeyModifierKey())
 
 
 namespace Util {
