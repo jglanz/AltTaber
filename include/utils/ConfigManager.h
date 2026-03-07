@@ -49,28 +49,70 @@ public:
         set("ShowAllWindows", show);
     }
 
-    int getHotkey() {
-        return get("Hotkey", VK_MENU).toInt();
+    // App switch hotkey modifier (VK_MENU or VK_CONTROL)
+    int getAppSwitchHotkey() {
+        return get("AppSwitchHotkey", VK_MENU).toInt();
     }
 
-    void setHotkey(int vkCode) {
-        set("Hotkey", vkCode);
+    void setAppSwitchHotkey(int vkCode) {
+        set("AppSwitchHotkey", vkCode);
     }
 
-    Qt::KeyboardModifier getHotkeyModifier() {
-        auto hotkey = getHotkey();
-        if (hotkey == VK_CONTROL) return Qt::ControlModifier;
-        return Qt::AltModifier;
+    Qt::KeyboardModifier getAppSwitchModifier() {
+        return (getAppSwitchHotkey() == VK_CONTROL) ? Qt::ControlModifier : Qt::AltModifier;
     }
 
-    Qt::Key getHotkeyModifierKey() {
-        auto hotkey = getHotkey();
-        if (hotkey == VK_CONTROL) return Qt::Key_Control;
-        return Qt::Key_Alt;
+    Qt::Key getAppSwitchModifierKey() {
+        return (getAppSwitchHotkey() == VK_CONTROL) ? Qt::Key_Control : Qt::Key_Alt;
+    }
+
+    // Window switch hotkey modifier (VK_MENU or VK_CONTROL)
+    int getWindowSwitchHotkey() {
+        return get("WindowSwitchHotkey", VK_MENU).toInt();
+    }
+
+    void setWindowSwitchHotkey(int vkCode) {
+        set("WindowSwitchHotkey", vkCode);
+    }
+
+    Qt::KeyboardModifier getWindowSwitchModifier() {
+        return (getWindowSwitchHotkey() == VK_CONTROL) ? Qt::ControlModifier : Qt::AltModifier;
+    }
+
+    Qt::Key getWindowSwitchModifierKey() {
+        return (getWindowSwitchHotkey() == VK_CONTROL) ? Qt::Key_Control : Qt::Key_Alt;
+    }
+
+    // Deprecated: use getAppSwitchHotkey() instead
+    int getHotkey() { return getAppSwitchHotkey(); }
+    void setHotkey(int vkCode) { setAppSwitchHotkey(vkCode); }
+    Qt::KeyboardModifier getHotkeyModifier() { return getAppSwitchModifier(); }
+    Qt::Key getHotkeyModifierKey() { return getAppSwitchModifierKey(); }
+
+    // Show preview thumbnails instead of icons
+    bool getShowPreview() {
+        return get("ShowPreview", false).toBool();
+    }
+
+    void setShowPreview(bool show) {
+        set("ShowPreview", show);
     }
 
 private:
-    explicit ConfigManager(const QString& filename) : ConfigManagerBase(filename) {}
+    explicit ConfigManager(const QString& filename) : ConfigManagerBase(filename) {
+        migrateConfig();
+    }
+
+    void migrateConfig() {
+        // Migrate old single "Hotkey" key to new dual-hotkey config
+        if (settings.contains("Hotkey") && !settings.contains("AppSwitchHotkey")) {
+            int oldHotkey = get("Hotkey", VK_MENU).toInt();
+            set("AppSwitchHotkey", oldHotkey);
+            remove("Hotkey");
+            sync();
+            qDebug() << "Migrated Hotkey config to AppSwitchHotkey:" << oldHotkey;
+        }
+    }
 };
 
 

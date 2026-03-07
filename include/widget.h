@@ -1,10 +1,11 @@
-﻿#ifndef WIN_SWITCHER_WIDGET_H
+#ifndef WIN_SWITCHER_WIDGET_H
 #define WIN_SWITCHER_WIDGET_H
 
 #include <QWidget>
 #include <Windows.h>
 #include <QListWidget>
 #include <QDebug>
+#include "utils/DwmThumbnailManager.h"
 
 struct WindowGroup;
 
@@ -50,6 +51,7 @@ protected:
     void keyPressEvent(QKeyEvent* event) override;
     void keyReleaseEvent(QKeyEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
+    void hideEvent(QHideEvent* event) override;
 
 public:
     enum ForegroundChangeSource {
@@ -57,13 +59,20 @@ public:
         Inner,
     };
 
+    enum class OverlayMode {
+        AppSwitch,
+        WindowSwitch,
+    };
+
     Q_ENUM(ForegroundChangeSource) // for QMetaEnum, to QString
 
 public:
     explicit Widget(QWidget* parent = nullptr);
     QList<WindowGroup> prepareWindowGroupList();
+    QList<WindowGroup> prepareWindowListForApp(const QString& exePath);
     bool prepareListWidget();
     Q_INVOKABLE bool requestShow();
+    Q_INVOKABLE bool requestShowWindowSwitch();
     void notifyForegroundChanged(HWND hwnd, ForegroundChangeSource source);
 
     HWND hWnd() { return (HWND) winId(); }
@@ -89,10 +98,15 @@ private:
 private:
     Ui::Widget* ui;
     QListWidget* lw = nullptr;
-    const QMargins ListWidgetMargin{24, 24, 24, 24};
+    const QMargins ListWidgetMargin{24, 24, 24, 70};
     /// exePath -> (HWND, time)
     QHash<QString, QHash<HWND, QDateTime>> winActiveOrder;
     QList<HWND> groupWindowOrder; // for Alt+` 同组窗口切换
+    OverlayMode currentMode = OverlayMode::AppSwitch;
+    QString windowSwitchExePath;
+    bool isWrapped = false;
+    bool previewMode = false;
+    DwmThumbnailManager thumbnailManager;
 };
 
 

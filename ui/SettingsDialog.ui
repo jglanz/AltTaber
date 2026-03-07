@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>350</width>
-    <height>250</height>
+    <width>400</width>
+    <height>380</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -15,57 +15,130 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <layout class="QFormLayout" name="formLayout">
-     <item row="0" column="0">
-      <widget class="QLabel" name="label">
-       <property name="text">
-        <string>Hotkey:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="1">
-      <widget class="QComboBox" name="combo_hotkey">
-       <item>
+    <widget class="QGroupBox" name="group_hotkeys">
+     <property name="title">
+      <string>Hotkeys</string>
+     </property>
+     <layout class="QFormLayout" name="formLayout_hotkeys">
+      <item row="0" column="0">
+       <widget class="QLabel" name="label_appSwitch">
         <property name="text">
-         <string>Alt (VK_MENU)</string>
+         <string>App Switch:</string>
         </property>
-       </item>
-       <item>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <layout class="QHBoxLayout" name="hLayout_appSwitch">
+        <item>
+         <widget class="QComboBox" name="combo_appSwitchMod">
+          <item>
+           <property name="text">
+            <string>Alt</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Ctrl</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_appSwitchKey">
+          <property name="text">
+           <string>+ Tab</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_winSwitch">
         <property name="text">
-         <string>Control (VK_CONTROL)</string>
+         <string>Window Switch:</string>
         </property>
-       </item>
-      </widget>
-     </item>
-     <item row="1" column="0">
-      <widget class="QLabel" name="label_2">
-       <property name="text">
-        <string>Window Mode:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="1">
-      <widget class="QComboBox" name="combo_windowMode">
-       <item>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <layout class="QHBoxLayout" name="hLayout_winSwitch">
+        <item>
+         <widget class="QComboBox" name="combo_winSwitchMod">
+          <item>
+           <property name="text">
+            <string>Alt</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Ctrl</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_winSwitchKey">
+          <property name="text">
+           <string>+ `</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="group_general">
+     <property name="title">
+      <string>General</string>
+     </property>
+     <layout class="QVBoxLayout" name="vLayout_general">
+      <item>
+       <widget class="QCheckBox" name="check_startup">
         <property name="text">
-         <string>1 per app window</string>
+         <string>Start with Windows</string>
         </property>
-       </item>
-       <item>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="check_preview">
         <property name="text">
-         <string>All windows</string>
+         <string>Show window preview instead of icon</string>
         </property>
-       </item>
-      </widget>
-     </item>
-     <item row="2" column="1">
-      <widget class="QCheckBox" name="check_startup">
-       <property name="text">
-        <string>Start with Windows</string>
-       </property>
-      </widget>
-     </item>
-    </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="check_showAllWindows">
+        <property name="text">
+         <string>Show all windows (ungrouped)</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="group_display">
+     <property name="title">
+      <string>Display Monitor</string>
+     </property>
+     <layout class="QVBoxLayout" name="vLayout_display">
+      <item>
+       <widget class="QRadioButton" name="radio_primaryMonitor">
+        <property name="text">
+         <string>Primary Monitor</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QRadioButton" name="radio_mouseMonitor">
+        <property name="text">
+         <string>Follow Cursor</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
    </item>
    <item>
     <spacer name="verticalSpacer">
@@ -75,7 +148,7 @@
      <property name="sizeHint" stdset="0">
       <size>
        <width>20</width>
-       <height>40</height>
+       <height>20</height>
       </size>
      </property>
     </spacer>

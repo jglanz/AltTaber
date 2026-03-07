@@ -1,4 +1,4 @@
-﻿#include "utils/IconOnlyDelegate.h"
+#include "utils/IconOnlyDelegate.h"
 #include "widget.h"
 
 void IconOnlyDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const {
@@ -13,12 +13,16 @@ void IconOnlyDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
         painter->drawRoundedRect(option.rect, radius, radius);
     }
 
-    // 居中绘制图标
-    auto icon = qvariant_cast<QIcon>(index.data(Qt::DecorationRole));
-    if (!icon.isNull()) {
-        QRect iconRect{{}, option.decorationSize}; // QListWidget::iconSize()
-        iconRect.moveCenter(option.rect.center());
-        icon.paint(painter, iconRect);
+    // In preview mode, DWM renders the thumbnails on top — skip icon drawing
+    if (!previewMode) {
+        // 居中绘制图标
+        auto icon = qvariant_cast<QIcon>(index.data(Qt::DecorationRole));
+        if (!icon.isNull()) {
+            QRect iconRect{{}, option.decorationSize}; // QListWidget::iconSize()
+            iconRect.moveCenter(option.rect.center());
+            auto pixmap = icon.pixmap(option.decorationSize);
+            painter->drawPixmap(iconRect, pixmap);
+        }
     }
 
     // draw badge

@@ -8,10 +8,20 @@
 #include <QElapsedTimer>
 #include "ConfigManager.h"
 
-// ALTTAB_DEFAULT_HOTKEY related macros are deprecated, use ConfigManager instead.
-#define ALTTAB_HOTKEY (cfg.getHotkey())
-#define ALTTAB_HOTKEY_MODIFIER (cfg.getHotkeyModifier())
-#define ALTTAB_HOTKEY_MODIFIER_KEY (cfg.getHotkeyModifierKey())
+// App switch hotkey macros
+#define APP_SWITCH_HOTKEY (cfg.getAppSwitchHotkey())
+#define APP_SWITCH_MODIFIER (cfg.getAppSwitchModifier())
+#define APP_SWITCH_MODIFIER_KEY (cfg.getAppSwitchModifierKey())
+
+// Window switch hotkey macros
+#define WIN_SWITCH_HOTKEY (cfg.getWindowSwitchHotkey())
+#define WIN_SWITCH_MODIFIER (cfg.getWindowSwitchModifier())
+#define WIN_SWITCH_MODIFIER_KEY (cfg.getWindowSwitchModifierKey())
+
+// Deprecated aliases
+#define ALTTAB_HOTKEY APP_SWITCH_HOTKEY
+#define ALTTAB_HOTKEY_MODIFIER APP_SWITCH_MODIFIER
+#define ALTTAB_HOTKEY_MODIFIER_KEY APP_SWITCH_MODIFIER_KEY
 
 
 namespace Util {

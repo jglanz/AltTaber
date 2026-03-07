@@ -1,4 +1,4 @@
-﻿#include "widget.h"
+#include "widget.h"
 #include "ui_Widget.h"
 #include "utils/Util.h"
 #include <QDebug>
@@ -11,6 +11,7 @@
 #include <QDateTime>
 #include "utils/QtWin.h"
 #include <QWheelEvent>
+#include <QHideEvent>
 #include <QTimer>
 #include <QMetaEnum>
 #include "utils/SystemTray.h"
@@ -33,12 +34,10 @@ Widget::Widget(QWidget* parent) : QWidget(parent), ui(new Ui::Widget) {
     lw->setViewMode(QListView::IconMode);
     lw->setMovement(QListView::Static);
     lw->setFlow(QListView::LeftToRight);
-    lw->setWrapping(false);
     lw->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     lw->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    lw->setIconSize({64, 64});
-    lw->setGridSize({80, 80});
-    lw->setFixedHeight(lw->gridSize().height());
+    lw->setIconSize({96, 96});
+    lw->setGridSize({160, 160});
     lw->setUniformItemSizes(true); // optimization ?
     lw->setStyleSheet(R"(
         QListWidget {
@@ -88,23 +87,26 @@ void Widget::keyPressEvent(QKeyEvent* event) {
         // weird formula, but works (hhh)
         auto index = (i - (2 * isShiftPressed - 1) + lw->count()) % lw->count();
         lw->setCurrentRow(index);
-    } else if (key == Qt::Key_QuoteLeft && (modifiers & ALTTAB_HOTKEY_MODIFIER)) { // Alt + `, 在前台窗口同组窗口内切换
+    } else if (key == Qt::Key_QuoteLeft && (modifiers & WIN_SWITCH_MODIFIER)) { // Alt + `, show window switcher overlay
         if (this->isVisible() && !this->isMinimized()) {
-            // isVisible() == true if minimized
-            // 不使用`isForeground()`，即使`bringWindowToTop`(without active)，少数窗口也可能抢夺焦点，如`CAJViewer`
-            hide();
+            if (currentMode == OverlayMode::WindowSwitch) {
+                // Already showing window overlay, cycle to next item
+                auto i = lw->currentRow();
+                bool isShiftPressed = (modifiers & Qt::ShiftModifier);
+                auto index = (i - (2 * isShiftPressed - 1) + lw->count()) % lw->count();
+                lw->setCurrentRow(index);
+            } else {
+                hide(); // hide app overlay
+            }
             return;
         }
-        auto foreWin = GetForegroundWindow();
-        if (groupWindowOrder.isEmpty()) {
-            auto targetExe = Util::getWindowProcessPath(foreWin);
-            groupWindowOrder = buildGroupWindowOrder(targetExe);
-        }
-        if (auto nextWin = rotateWindowInGroup(groupWindowOrder, foreWin, !(modifiers & Qt::ShiftModifier))) {
-            Util::switchToWindow(nextWin, true);
-            qInfo() << "(Alt+`)Switch to" << Util::getWindowTitle(nextWin) << Util::getClassName(nextWin);
-        }
+        requestShowWindowSwitch();
     } else if (key == Qt::Key_Up || key == Qt::Key_Down) {
+        if (isWrapped) {
+            // In multi-row mode, let QListWidget handle Up/Down natively for row navigation
+            QWidget::keyPressEvent(event);
+            return;
+        }
         if (auto item = lw->currentItem()) {
             auto center = lw->visualItemRect(item).center();
             // 转发映射到WheelEvent
@@ -134,35 +136,37 @@ bool Widget::forceShow() {
     return isForeground();
 }
 
-/// show App description under the icon
+/// show App description at the bottom center of the overlay
 void Widget::showLabelForItem(QListWidgetItem* item, QString text) {
     if (!item) return;
 
     if (text.isNull()) {
-        auto path = item->data(Qt::UserRole).value<WindowGroup>().exePath;
-        text = Util::getFileDescription(path);
+        auto group = item->data(Qt::UserRole).value<WindowGroup>();
+        if (currentMode == OverlayMode::WindowSwitch && !group.windows.isEmpty())
+            text = group.windows.at(0).title;
+        else
+            text = Util::getFileDescription(group.exePath);
     }
     ui->label->setText(text);
     ui->label->adjustSize();
 
-    auto itemRect = lw->visualItemRect(item);
-    auto center = itemRect.center() + QPoint(0, itemRect.height() / 2 + ListWidgetMargin.bottom() / 2);
-    center = lw->mapTo(this, center);
-    auto labelRect = ui->label->rect();
-    labelRect.moveCenter(center);
+    // Position label at the bottom center of the overlay
+    auto overlayRect = this->rect();
+    auto labelSize = ui->label->size();
+    int labelX = (overlayRect.width() - labelSize.width()) / 2;
+    int labelY = overlayRect.bottom() - labelSize.height() - 10;
 
-    auto bound = this->rect().marginsRemoved({5, 0, 5, 0});
-    labelRect.moveRight(qMin(labelRect.right(), bound.right()));
-    labelRect.moveLeft(qMax(labelRect.left(), bound.left())); // left align
+    // Clamp horizontally within overlay bounds
+    labelX = qMax(5, qMin(labelX, overlayRect.right() - labelSize.width() - 5));
 
-    ui->label->move(labelRect.topLeft());
+    ui->label->move(labelX, labelY);
 }
 
 void Widget::setupLabelFont() {
     static auto reloadLabelFontCfg = [this] {
         const QStringList Fonts = {"Microsoft YaHei UI", "Microsoft YaHei", "Consolas"}; // fallback
         auto labelFont = ui->label->font();
-        labelFont.setPointSize(cfg.get("label/font_size", 10).toInt());
+        labelFont.setPointSize(cfg.get("label/font_size", 20).toInt());
         auto defaultFF = QStringList{cfg.get("label/font_family", Fonts[0]).toString()};
         labelFont.setFamilies(defaultFF << Fonts.mid(1));
         ui->label->setFont(labelFont);
@@ -178,27 +182,38 @@ void Widget::setupLabelFont() {
 }
 
 void Widget::keyReleaseEvent(QKeyEvent* event) {
-    if (event->key() == ALTTAB_HOTKEY_MODIFIER_KEY || event->key() == Qt::Key_Escape) {
-        groupWindowOrder.clear(); // for Alt + `
+    bool isAppSwitchRelease = (event->key() == APP_SWITCH_MODIFIER_KEY);
+    bool isWinSwitchRelease = (event->key() == WIN_SWITCH_MODIFIER_KEY);
+    bool isEscape = (event->key() == Qt::Key_Escape);
+
+    bool shouldActivate = isEscape ||
+        (currentMode == OverlayMode::AppSwitch && isAppSwitchRelease) ||
+        (currentMode == OverlayMode::WindowSwitch && isWinSwitchRelease);
+
+    if (shouldActivate) {
+        groupWindowOrder.clear();
         if (this->isVisible()) {
-            // active selected window
             if (auto item = lw->currentItem()) {
                 if (auto group = item->data(Qt::UserRole).value<WindowGroup>(); !group.windows.empty()) {
-                    WindowInfo targetWin = group.windows.at(0); // TODO 需要排序（lastActiveWindow 被关闭情况下）
-                    const auto lastActive = getLastActiveGroupWindow(group.exePath).first;
-                    for (auto& info: group.windows) {
-                        if (info.hwnd == lastActive) {
-                            targetWin = info;
-                            break;
+                    WindowInfo targetWin = group.windows.at(0);
+                    if (currentMode == OverlayMode::AppSwitch) {
+                        // In app-switch mode, pick the last active window from the group
+                        const auto lastActive = getLastActiveGroupWindow(group.exePath).first;
+                        for (auto& info: group.windows) {
+                            if (info.hwnd == lastActive) {
+                                targetWin = info;
+                                break;
+                            }
                         }
                     }
+                    // In window-switch mode, targetWin is already the single window
                     if (targetWin.hwnd) {
                         Util::switchToWindow(targetWin.hwnd);
                         qInfo() << "Switch to" << targetWin << group.exePath;
                     }
                 }
             }
-            hide(); //! must hide after active target window, or focus may fallback to prev foreground window (like 网易云音乐)
+            hide();
         }
     }
     QWidget::keyReleaseEvent(event);
@@ -210,6 +225,11 @@ void Widget::paintEvent(QPaintEvent*) { //不绘制会导致鼠标穿透背景
     painter.setPen(Qt::NoPen); //取消边框//pen决定边框颜色
     painter.setBrush(QColor(25, 25, 25, 100));
     painter.drawRect(rect());
+}
+
+void Widget::hideEvent(QHideEvent* event) {
+    thumbnailManager.unregisterAll();
+    QWidget::hideEvent(event);
 }
 
 /// 通知前台窗口变化
@@ -279,7 +299,25 @@ QList<WindowGroup> Widget::prepareWindowGroupList() {
 }
 
 bool Widget::prepareListWidget() {
-    auto winGroupList = prepareWindowGroupList();
+    // Unregister any previous DWM thumbnails
+    thumbnailManager.unregisterAll();
+
+    // Configure grid/icon sizes based on preview mode
+    previewMode = cfg.getShowPreview();
+    if (previewMode) {
+        lw->setGridSize(DwmThumbnailManager::previewGridSize());
+        lw->setIconSize(DwmThumbnailManager::previewIconSize());
+    } else {
+        lw->setGridSize({160, 160});
+        lw->setIconSize({96, 96});
+    }
+    // Update delegate preview mode
+    if (auto* delegate = qobject_cast<IconOnlyDelegate*>(lw->itemDelegate()))
+        delegate->previewMode = previewMode;
+
+    auto winGroupList = (currentMode == OverlayMode::WindowSwitch)
+        ? prepareWindowListForApp(windowSwitchExePath)
+        : prepareWindowGroupList();
     lw->clear();
     for (auto& winGroup: winGroupList) {
         auto item = new QListWidgetItem(winGroup.icon, {}); // null != "", which will completely hide text area
@@ -292,10 +330,12 @@ bool Widget::prepareListWidget() {
     // calculate Geometry
     if (auto firstItem = lw->item(0)) {
         auto firstRect = lw->visualItemRect(firstItem);
-        auto width = lw->gridSize().width() * lw->count() + (firstRect.x() - lw->frameWidth()); // 一些微小的噼里啪啦修正
-        lw->setFixedWidth(width);
+        int itemCount = lw->count();
+        int gridW = lw->gridSize().width();
+        int gridH = lw->gridSize().height();
+        int offset = firstRect.x() - lw->frameWidth(); // 一些微小的噼里啪啦修正
 
-        // get screen
+        // get screen (need it early for wrapping calculation)
         bool displayOnPrimary = (cfg.getDisplayMonitor() == PrimaryMonitor);
         auto screen = displayOnPrimary ?
                       QGuiApplication::primaryScreen() :
@@ -310,34 +350,67 @@ bool Widget::prepareListWidget() {
             return false;
         }
 
-        // move to scrren center
-        qDebug() << "Screen:" << screen->name();
+        // Calculate wrapping: if single row exceeds 75% screen width, wrap to multiple rows
+        int singleRowWidth = gridW * itemCount + offset;
+        int screenWidth = screen->geometry().width();
+        int maxWidth = static_cast<int>(screenWidth * 0.75);
+
+        int lwWidth, lwHeight;
+        if (singleRowWidth <= maxWidth) {
+            // Single row, no wrapping
+            lwWidth = singleRowWidth;
+            lwHeight = gridH;
+            lw->setWrapping(false);
+            isWrapped = false;
+        } else {
+            // Multi-row wrapping
+            int cols = qMax(1, (maxWidth - offset) / gridW);
+            int rows = (itemCount + cols - 1) / cols;
+            lwWidth = gridW * cols + offset;
+            lwHeight = gridH * rows;
+            lw->setWrapping(true);
+            isWrapped = true;
+        }
+
+        lw->setFixedSize(lwWidth, lwHeight);
+
+        // move to screen center
+        qDebug() << "Screen:" << screen->name() << "wrapped:" << isWrapped;
         auto lwRect = lw->rect();
         auto thisRect = lwRect.marginsAdded(ListWidgetMargin);
         thisRect.moveCenter(screen->geometry().center());
 
-        //region Fixed in Qt6, see commit [b927ee4b]
-        //      !!!WARNING: 对于多屏幕，直接使用setGeometry or move会报错(QWindowsWindow::setGeometry: Unable to set geometry) & size显示不正确！
-        //      报错时机为：从一个屏幕hide，再在另一个屏幕show; 第二次在同一个屏幕show，则正常
-        //      size显示不正确不能忍，遂改用WinAPI
-        //endregion
         this->setGeometry(thisRect);
 
-        //region Fixed in Qt6, see commit [b927ee4b]
-        //this->windowHandle()->setScreen(screen); // 若首次显示是在副屏，会导致size显示错误（如果没有这行）
-        // `toNativePixels`是针对Point的，会根据屏幕原点进行位移
-        // 对于其他类型（如Size），直接乘以`QHighDpiScaling::factor(screen)`即可
-        //auto physicalPos = QHighDpi::toNativePixels(thisRect.topLeft(), screen);
-        // 如果用SetWindowPos的话要注意加上`SWP_NOACTIVATE`，否则焦点有问题，没错，NoActive反而是Active (focus)的
-        //SetWindowPos(hWnd(), nullptr, physicalPos.x(), physicalPos.y(), 0, 0, SWP_NOACTIVATE | SWP_NOSIZE | SWP_NOZORDER);
-        // !!!NOTE: 用WinAPI控制size貌似有问题，在图标增减的时候，无法正确调整Width，离子谱；只能用resize
-        // 1. × 猜想是showNormal()恢复了原有的size，导致resize无效；但是改成show()也不行
-        // 2. 猜想是隐藏状态改变size无效？（不科学吧），但是在`SetWindowPos`前show()好像会好一点（第二次显示调整size成功）aaa
-        //this->resize(thisRect.size());
-        //endregion
+        lw->move(ListWidgetMargin.left(), ListWidgetMargin.top());
 
-        lwRect.moveCenter(this->rect().center()); // local pos
-        lw->move(lwRect.topLeft());
+        // Register DWM thumbnails in preview mode
+        if (previewMode) {
+            auto dpr = screen->devicePixelRatio();
+            auto widgetScreenPos = thisRect.topLeft(); // screen-space position of the widget
+            for (int i = 0; i < lw->count(); i++) {
+                auto* item = lw->item(i);
+                auto group = item->data(Qt::UserRole).value<WindowGroup>();
+                if (group.windows.isEmpty()) continue;
+                HWND sourceWnd = group.windows.at(0).hwnd;
+
+                // Get the visual rect of the item relative to the list widget viewport
+                auto itemRect = lw->visualItemRect(item);
+                // Map to widget coordinates, then to screen physical coordinates
+                auto itemInWidget = itemRect.translated(lw->mapTo(this, QPoint(0, 0)));
+                // Convert to physical pixels for DWM
+                QRect physRect(
+                    static_cast<int>((widgetScreenPos.x() + itemInWidget.x()) * dpr),
+                    static_cast<int>((widgetScreenPos.y() + itemInWidget.y()) * dpr),
+                    static_cast<int>(itemInWidget.width() * dpr),
+                    static_cast<int>(itemInWidget.height() * dpr)
+                );
+                // Inset slightly for padding
+                physRect.adjust(4, 4, -4, -4);
+                thumbnailManager.registerThumbnail(hWnd(), sourceWnd, physRect);
+            }
+            qDebug() << "Registered" << thumbnailManager.count() << "DWM thumbnails";
+        }
     } else {
         // no item, hide ? TODO
         return false;
@@ -364,7 +437,38 @@ bool Widget::prepareListWidget() {
 }
 
 bool Widget::requestShow() { // TODO 当前台是开始菜单（Win）时，会导致显示 但无法操控
+    currentMode = OverlayMode::AppSwitch;
     return prepareListWidget() && forceShow();
+}
+
+bool Widget::requestShowWindowSwitch() {
+    auto foreWin = GetForegroundWindow();
+    auto exePath = Util::getWindowProcessPath(foreWin);
+    if (exePath.isEmpty()) return false;
+
+    currentMode = OverlayMode::WindowSwitch;
+    windowSwitchExePath = exePath;
+    return prepareListWidget() && forceShow();
+}
+
+QList<WindowGroup> Widget::prepareWindowListForApp(const QString& exePath) {
+    auto windows = Util::listValidWindows(exePath);
+    if (windows.isEmpty()) return {};
+
+    sortGroupWindows(windows, exePath);
+
+    QList<WindowGroup> windowList;
+    for (auto hwnd : windows) {
+        if (hwnd == this->hWnd()) continue;
+        WindowGroup group;
+        group.exePath = exePath;
+        group.icon = Util::getWindowIconOnly(hwnd);
+        if (group.icon.isNull())
+            group.icon = Util::getCachedIcon(exePath, hwnd);
+        group.addWindow({Util::getWindowTitle(hwnd), Util::getClassName(hwnd), hwnd});
+        windowList.append(group);
+    }
+    return windowList;
 }
 
 /// Warning: the `HWND` not guarantee to be valid (may be closed)

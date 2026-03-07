@@ -1,4 +1,4 @@
-﻿#ifndef WIN_SWITCHER_ICONONLYDELEGATE_H
+#ifndef WIN_SWITCHER_ICONONLYDELEGATE_H
 #define WIN_SWITCHER_ICONONLYDELEGATE_H
 
 #include <QStyledItemDelegate>
@@ -8,11 +8,15 @@
 
 /// Icon Only Mode for QListWidget
 class IconOnlyDelegate : public QStyledItemDelegate {
+    Q_OBJECT
+
     QColor selectedColor;
     QColor hoverColor;
     int radius;
 
 public:
+    bool previewMode = false;
+
     explicit IconOnlyDelegate(QObject* parent = nullptr,
                               QColor selectedColor = QColor(80, 80, 80, 200),
                               QColor hoverColor = QColor(50, 50, 50, 100),

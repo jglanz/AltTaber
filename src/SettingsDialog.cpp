@@ -18,33 +18,41 @@ SettingsDialog::~SettingsDialog() {
 }
 
 void SettingsDialog::loadSettings() {
-    // Hotkey
-    int hotkey = cfg.getHotkey();
-    if (hotkey == VK_CONTROL) {
-        ui->combo_hotkey->setCurrentIndex(1);
-    } else {
-        ui->combo_hotkey->setCurrentIndex(0);
-    }
+    // App switch hotkey modifier
+    ui->combo_appSwitchMod->setCurrentIndex(cfg.getAppSwitchHotkey() == VK_CONTROL ? 1 : 0);
 
-    // Window Mode
-    bool showAll = cfg.getShowAllWindows();
-    ui->combo_windowMode->setCurrentIndex(showAll ? 1 : 0);
+    // Window switch hotkey modifier
+    ui->combo_winSwitchMod->setCurrentIndex(cfg.getWindowSwitchHotkey() == VK_CONTROL ? 1 : 0);
 
-    // Startup
+    // General
     ui->check_startup->setChecked(Startup::isOn());
+    ui->check_preview->setChecked(cfg.getShowPreview());
+    ui->check_showAllWindows->setChecked(cfg.getShowAllWindows());
+
+    // Display Monitor
+    if (cfg.getDisplayMonitor() == PrimaryMonitor)
+        ui->radio_primaryMonitor->setChecked(true);
+    else
+        ui->radio_mouseMonitor->setChecked(true);
 }
 
 void SettingsDialog::saveSettings() {
-    // Hotkey
-    int hotkey = (ui->combo_hotkey->currentIndex() == 1) ? VK_CONTROL : VK_MENU;
-    cfg.setHotkey(hotkey);
+    // App switch hotkey modifier
+    int appHotkey = (ui->combo_appSwitchMod->currentIndex() == 1) ? VK_CONTROL : VK_MENU;
+    cfg.setAppSwitchHotkey(appHotkey);
 
-    // Window Mode
-    bool showAll = (ui->combo_windowMode->currentIndex() == 1);
-    cfg.setShowAllWindows(showAll);
+    // Window switch hotkey modifier
+    int winHotkey = (ui->combo_winSwitchMod->currentIndex() == 1) ? VK_CONTROL : VK_MENU;
+    cfg.setWindowSwitchHotkey(winHotkey);
 
-    // Startup
+    // General
     Startup::set(ui->check_startup->isChecked());
+    cfg.setShowPreview(ui->check_preview->isChecked());
+    cfg.setShowAllWindows(ui->check_showAllWindows->isChecked());
+
+    // Display Monitor
+    DisplayMonitor monitor = ui->radio_primaryMonitor->isChecked() ? PrimaryMonitor : MouseMonitor;
+    cfg.setDisplayMonitor(monitor);
 
     cfg.sync();
     emit cfg.configEdited();

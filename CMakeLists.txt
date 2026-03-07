@@ -77,7 +77,9 @@ add_executable(
         include/SettingsDialog.h
         ui/SettingsDialog.ui
         src/utils/ScheduledTask.cpp
-        include/utils/ScheduledTask.h)
+        include/utils/ScheduledTask.h
+        src/utils/DwmThumbnailManager.cpp
+        include/utils/DwmThumbnailManager.h)
 target_link_libraries(${PROJECT_NAME}
         Qt::Core
         Qt::Gui

@@ -1,60 +1,68 @@
-﻿#include "utils/KeyboardHooker.h"
+#include "utils/KeyboardHooker.h"
 #include <QDebug>
 #include <QApplication>
 #include <QKeyEvent>
 #include "utils/Util.h"
 #include "widget.h"
 
+static bool isVkReleased(DWORD vkCode, int hotkeyVK) {
+    if (hotkeyVK == VK_MENU)
+        return (vkCode == VK_LMENU || vkCode == VK_RMENU || vkCode == VK_MENU);
+    if (hotkeyVK == VK_CONTROL)
+        return (vkCode == VK_LCONTROL || vkCode == VK_RCONTROL || vkCode == VK_CONTROL);
+    return false;
+}
+
 LRESULT keyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
     using Hooker = KeyboardHooker;
     if (nCode == HC_ACTION) {
-        if (wParam == WM_SYSKEYDOWN || wParam == WM_KEYDOWN) { // Alt & [Alt按下时的Tab]属于SysKey
+        if (wParam == WM_SYSKEYDOWN || wParam == WM_KEYDOWN) {
             auto* pKeyBoard = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam);
-            // inner: `GetAsyncKeyState`, doc warns this usage, but it seems to work fine(?)
-            // If it's broken, maybe we can record Modifier manually in every callback
-            /* Note from Docs:
-             * When this callback function is called in response to a change in the state of a key,
-             * the callback function is called before the asynchronous state of the key is updated.
-             * Consequently, the asynchronous state of the key cannot be determined by calling GetAsyncKeyState from within the callback function.
-             * */
 
-            bool isAltPressed = Util::isKeyPressed(ALTTAB_HOTKEY);
+            bool isAppModPressed = Util::isKeyPressed(APP_SWITCH_HOTKEY);
+            bool isWinModPressed = Util::isKeyPressed(WIN_SWITCH_HOTKEY);
 
-            if (isAltPressed && Hooker::receiver) {
-                if (pKeyBoard->vkCode == VK_TAB) {
-                    qDebug() << "Alt+Tab detected!";
-                    if ((HWND) Hooker::receiver->winId() != GetForegroundWindow()) { // not Foreground
-                        // 异步，防止阻塞；超过1s会导致被系统强制绕过，传递给下一个钩子
+            if (Hooker::receiver) {
+                // App switch: AppSwitchModifier + Tab
+                if (isAppModPressed && pKeyBoard->vkCode == VK_TAB) {
+                    qDebug() << "App Switch (Mod+Tab) detected!";
+                    if ((HWND) Hooker::receiver->winId() != GetForegroundWindow()) {
                         QMetaObject::invokeMethod(Hooker::receiver, "requestShow", Qt::QueuedConnection);
                     } else {
-                        // 转发Alt+Tab给Widget
                         auto shiftModifier = Util::isKeyPressed(VK_SHIFT) ? Qt::ShiftModifier : Qt::NoModifier;
-                        auto tabDownEvent = new QKeyEvent(QEvent::KeyPress, Qt::Key_Tab, ALTTAB_HOTKEY_MODIFIER | shiftModifier);
-                        QApplication::postEvent(Hooker::receiver, tabDownEvent); // async
+                        auto tabDownEvent = new QKeyEvent(QEvent::KeyPress, Qt::Key_Tab, APP_SWITCH_MODIFIER | shiftModifier);
+                        QApplication::postEvent(Hooker::receiver, tabDownEvent);
                     }
-                    return 1; // 阻止事件传递
-                } else if (pKeyBoard->vkCode == VK_OEM_3) { // ~`
-                    qDebug() << "Alt+` detected!";
+                    return 1;
+                }
+
+                // Window switch: WinSwitchModifier + ` (backtick)
+                if (isWinModPressed && pKeyBoard->vkCode == VK_OEM_3) {
+                    qDebug() << "Window Switch (Mod+`) detected!";
                     auto shiftModifier = Util::isKeyPressed(VK_SHIFT) ? Qt::ShiftModifier : Qt::NoModifier;
-                    auto event = new QKeyEvent(QEvent::KeyPress, Qt::Key_QuoteLeft, ALTTAB_HOTKEY_MODIFIER | shiftModifier);
-                    QApplication::postEvent(Hooker::receiver, event); // async
-                    return 1; // 阻止事件传递
+                    auto event = new QKeyEvent(QEvent::KeyPress, Qt::Key_QuoteLeft, WIN_SWITCH_MODIFIER | shiftModifier);
+                    QApplication::postEvent(Hooker::receiver, event);
+                    return 1;
                 }
             }
-        } else if (wParam == WM_KEYUP) { // Amazing, Alt Down is `WM_SYSKEYDOWN`, but release is `WM_KEYUP`
+        } else if (wParam == WM_KEYUP) {
             auto* pKeyBoard = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam);
-            bool isHotkeyReleased = false;
-            if (ALTTAB_HOTKEY == VK_MENU) {
-                isHotkeyReleased = (pKeyBoard->vkCode == VK_LMENU || pKeyBoard->vkCode == VK_RMENU || pKeyBoard->vkCode == VK_MENU);
-            } else if (ALTTAB_HOTKEY == VK_CONTROL) {
-                isHotkeyReleased = (pKeyBoard->vkCode == VK_LCONTROL || pKeyBoard->vkCode == VK_RCONTROL || pKeyBoard->vkCode == VK_CONTROL);
-            }
 
-            if (isHotkeyReleased && Hooker::receiver) {
-                qDebug() << "Hotkey released!";
-                auto event = new QKeyEvent(QEvent::KeyRelease, ALTTAB_HOTKEY_MODIFIER_KEY, Qt::NoModifier);
-                QApplication::postEvent(Hooker::receiver, event); // async
-                // not block
+            if (Hooker::receiver) {
+                bool appSwitchReleased = isVkReleased(pKeyBoard->vkCode, APP_SWITCH_HOTKEY);
+                bool winSwitchReleased = isVkReleased(pKeyBoard->vkCode, WIN_SWITCH_HOTKEY);
+
+                if (appSwitchReleased) {
+                    qDebug() << "App switch modifier released!";
+                    auto event = new QKeyEvent(QEvent::KeyRelease, APP_SWITCH_MODIFIER_KEY, Qt::NoModifier);
+                    QApplication::postEvent(Hooker::receiver, event);
+                }
+                if (winSwitchReleased && WIN_SWITCH_MODIFIER_KEY != APP_SWITCH_MODIFIER_KEY) {
+                    // Only post separate event if the modifiers are different
+                    qDebug() << "Window switch modifier released!";
+                    auto event = new QKeyEvent(QEvent::KeyRelease, WIN_SWITCH_MODIFIER_KEY, Qt::NoModifier);
+                    QApplication::postEvent(Hooker::receiver, event);
+                }
             }
         }
     }
@@ -66,7 +74,6 @@ KeyboardHooker::KeyboardHooker(QWidget* _receiver) {
         qWarning() << "Only one KeyboardHooker can be installed!";
         return;
     }
-    // 回调函数的执行与消息循环密切相关，在Get/PeekMessage时，系统才会触发回调; [https://learn.microsoft.com/en-us/windows/win32/winmsg/mouseproc]
     h_keyboard = SetWindowsHookEx(WH_KEYBOARD_LL, (HOOKPROC) keyboardProc, GetModuleHandle(nullptr), 0);
     if (!h_keyboard) {
         qWarning() << "Failed to install h_keyboard!";
